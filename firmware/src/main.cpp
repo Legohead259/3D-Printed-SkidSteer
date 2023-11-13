@@ -68,159 +68,148 @@ AsyncWebServer server(80);
 AsyncWebSocket wsCarInput("/CarInput");
 
 void rotateMotor(int motorNumber, int motorDirection) {
-  if (motorDirection == FORWARD)
-  {
-    digitalWrite(motorPins[motorNumber].pinIN1, HIGH);
-    digitalWrite(motorPins[motorNumber].pinIN2, LOW);    
-  }
-  else if (motorDirection == BACKWARD)
-  {
-    digitalWrite(motorPins[motorNumber].pinIN1, LOW);
-    digitalWrite(motorPins[motorNumber].pinIN2, HIGH);     
-  }
-  else
-  {
-    if(removeArmMomentum)
-    {
-    digitalWrite(motorPins[ARM_MOTOR].pinIN1, HIGH);
-    digitalWrite(motorPins[ARM_MOTOR].pinIN2, LOW); 
-    delay(10);
-    digitalWrite(motorPins[motorNumber].pinIN1, LOW);
-    digitalWrite(motorPins[motorNumber].pinIN2, LOW);
-    delay(5);
-    digitalWrite(motorPins[ARM_MOTOR].pinIN1, HIGH);
-    digitalWrite(motorPins[ARM_MOTOR].pinIN2, LOW);
-    delay(10);  
-    removeArmMomentum = false;
+    if (motorDirection == FORWARD) {
+        digitalWrite(motorPins[motorNumber].pinIN1, HIGH);
+        digitalWrite(motorPins[motorNumber].pinIN2, LOW);    
     }
-    digitalWrite(motorPins[motorNumber].pinIN1, LOW);
-    digitalWrite(motorPins[motorNumber].pinIN2, LOW);       
-  }
+    else if (motorDirection == BACKWARD) {
+        digitalWrite(motorPins[motorNumber].pinIN1, LOW);
+        digitalWrite(motorPins[motorNumber].pinIN2, HIGH);     
+    }
+    else {
+        if(removeArmMomentum) {
+            digitalWrite(motorPins[ARM_MOTOR].pinIN1, HIGH);
+            digitalWrite(motorPins[ARM_MOTOR].pinIN2, LOW); 
+            delay(10);
+            digitalWrite(motorPins[motorNumber].pinIN1, LOW);
+            digitalWrite(motorPins[motorNumber].pinIN2, LOW);
+            delay(5);
+            digitalWrite(motorPins[ARM_MOTOR].pinIN1, HIGH);
+            digitalWrite(motorPins[ARM_MOTOR].pinIN2, LOW);
+            delay(10);  
+            removeArmMomentum = false;
+        }
+        digitalWrite(motorPins[motorNumber].pinIN1, LOW);
+        digitalWrite(motorPins[motorNumber].pinIN2, LOW);       
+    }
 }
 
-void moveCar(int inputValue)
-{
-  Serial.printf("Got value as %d\n", inputValue); 
-  if(!(horizontalScreen))
-  { 
-  switch(inputValue)
-  {
+void moveCar(int inputValue) {
+    Serial.printf("Got value as %d\n", inputValue); 
+    if(!(horizontalScreen)) { 
+        switch(inputValue) {
+            case UP:
+                rotateMotor(RIGHT_MOTOR, FORWARD);
+                rotateMotor(LEFT_MOTOR, FORWARD);                  
+                break;
+        
+            case DOWN:
+                rotateMotor(RIGHT_MOTOR, BACKWARD);
+                rotateMotor(LEFT_MOTOR, BACKWARD);  
+                break;
+        
+            case LEFT:
+                rotateMotor(RIGHT_MOTOR, BACKWARD);
+                rotateMotor(LEFT_MOTOR, FORWARD);  
+                break;
+        
+            case RIGHT:
+                rotateMotor(RIGHT_MOTOR, FORWARD);
+                rotateMotor(LEFT_MOTOR, BACKWARD); 
+                break;
+        
+            case STOP:
+                rotateMotor(ARM_MOTOR, STOP); 
+                rotateMotor(RIGHT_MOTOR, STOP);
+                rotateMotor(LEFT_MOTOR, STOP);    
+                break;
 
-    case UP:
-      rotateMotor(RIGHT_MOTOR, FORWARD);
-      rotateMotor(LEFT_MOTOR, FORWARD);                  
-      break;
-  
-    case DOWN:
-      rotateMotor(RIGHT_MOTOR, BACKWARD);
-      rotateMotor(LEFT_MOTOR, BACKWARD);  
-      break;
-  
-    case LEFT:
-      rotateMotor(RIGHT_MOTOR, BACKWARD);
-      rotateMotor(LEFT_MOTOR, FORWARD);  
-      break;
-  
-    case RIGHT:
-      rotateMotor(RIGHT_MOTOR, FORWARD);
-      rotateMotor(LEFT_MOTOR, BACKWARD); 
-      break;
- 
-    case STOP:
-      rotateMotor(ARM_MOTOR, STOP); 
-      rotateMotor(RIGHT_MOTOR, STOP);
-      rotateMotor(LEFT_MOTOR, STOP);    
-      break;
+            case ARMUP:
+                rotateMotor(ARM_MOTOR, FORWARD);
+                break;
+            
+            case ARMDOWN:
+                rotateMotor(ARM_MOTOR, BACKWARD);
+                removeArmMomentum = true;
+                break; 
+            
+            default:
+                rotateMotor(ARM_MOTOR, STOP);    
+                rotateMotor(RIGHT_MOTOR, STOP);
+                rotateMotor(LEFT_MOTOR, STOP); 
+                break;
+        }
+    }
+    else {
+        switch(inputValue){
+            case UP:
+                rotateMotor(RIGHT_MOTOR, BACKWARD);
+                rotateMotor(LEFT_MOTOR, FORWARD);                  
+                break;
+        
+            case DOWN:
+                rotateMotor(RIGHT_MOTOR, FORWARD);
+                rotateMotor(LEFT_MOTOR, BACKWARD);  
+                break;
+        
+            case LEFT:
+                rotateMotor(RIGHT_MOTOR, BACKWARD);
+                rotateMotor(LEFT_MOTOR, BACKWARD);  
+                break;
+        
+            case RIGHT:
+                rotateMotor(RIGHT_MOTOR, FORWARD);
+                rotateMotor(LEFT_MOTOR, FORWARD); 
+                break;
+        
+            case STOP:
+                rotateMotor(ARM_MOTOR, STOP); 
+                rotateMotor(RIGHT_MOTOR, STOP);
+                rotateMotor(LEFT_MOTOR, STOP);    
+                break;
 
-    case ARMUP:
-      rotateMotor(ARM_MOTOR, FORWARD);
-      break;
-      
-    case ARMDOWN:
-      rotateMotor(ARM_MOTOR, BACKWARD);
-      removeArmMomentum = true;
-      break; 
-      
-    default:
-      rotateMotor(ARM_MOTOR, STOP);    
-      rotateMotor(RIGHT_MOTOR, STOP);
-      rotateMotor(LEFT_MOTOR, STOP); 
-      break;
-  }
-  }else {
-      switch(inputValue)
-  {
-     case UP:
-      rotateMotor(RIGHT_MOTOR, BACKWARD);
-      rotateMotor(LEFT_MOTOR, FORWARD);                  
-      break;
-  
-    case DOWN:
-      rotateMotor(RIGHT_MOTOR, FORWARD);
-      rotateMotor(LEFT_MOTOR, BACKWARD);  
-      break;
-  
-    case LEFT:
-      rotateMotor(RIGHT_MOTOR, BACKWARD);
-      rotateMotor(LEFT_MOTOR, BACKWARD);  
-      break;
-  
-    case RIGHT:
-      rotateMotor(RIGHT_MOTOR, FORWARD);
-      rotateMotor(LEFT_MOTOR, FORWARD); 
-      break;
- 
-    case STOP:
-      rotateMotor(ARM_MOTOR, STOP); 
-      rotateMotor(RIGHT_MOTOR, STOP);
-      rotateMotor(LEFT_MOTOR, STOP);    
-      break;
-
-    case ARMUP:
-      rotateMotor(ARM_MOTOR, FORWARD); 
-      break;
-      
-    case ARMDOWN:
-      rotateMotor(ARM_MOTOR, BACKWARD);
-      removeArmMomentum = true;
-      break; 
-      
-    default:
-      rotateMotor(ARM_MOTOR, STOP);    
-      rotateMotor(RIGHT_MOTOR, STOP);
-      rotateMotor(LEFT_MOTOR, STOP); 
-      break;
-  }
-  }
+            case ARMUP:
+                rotateMotor(ARM_MOTOR, FORWARD); 
+                break;
+            
+            case ARMDOWN:
+                rotateMotor(ARM_MOTOR, BACKWARD);
+                removeArmMomentum = true;
+                break; 
+            
+            default:
+                rotateMotor(ARM_MOTOR, STOP);    
+                rotateMotor(RIGHT_MOTOR, STOP);
+                rotateMotor(LEFT_MOTOR, STOP); 
+                break;
+        }
+    }
 }
 
 
 void bucketTilt(int bucketServoValue) {
-  bucketServo.write(bucketServoValue); 
+    bucketServo.write(bucketServoValue); 
 }
 
 void auxControl(int auxServoValue) {
-  auxServo.write(auxServoValue); 
+    auxServo.write(auxServoValue); 
 }
 
 
-void handleRoot(AsyncWebServerRequest *request) 
-{
-//   request->send_P(200, "text/html", htmlHomePage);
+void handleRoot(AsyncWebServerRequest *request) {
     request->send(SPIFFS, "/index.html", String(), false);
 }
 
-void handleNotFound(AsyncWebServerRequest *request) 
-{
+void handleNotFound(AsyncWebServerRequest *request) {
     request->send(404, "text/plain", "File Not Found");
 }
 
 void onCarInputWebSocketEvent(AsyncWebSocket *server, 
-                      AsyncWebSocketClient *client, 
-                      AwsEventType type,
-                      void *arg, 
-                      uint8_t *data, 
-                      size_t len) {                      
+                            AsyncWebSocketClient *client, 
+                            AwsEventType type,
+                            void *arg, 
+                            uint8_t *data, 
+                            size_t len) {                      
     switch (type) {
         case WS_EVT_CONNECT:
         Serial.printf("WebSocket client #%u connected from %s\n", client->id(), client->remoteIP().toString().c_str());
@@ -230,47 +219,43 @@ void onCarInputWebSocketEvent(AsyncWebSocket *server,
         moveCar(STOP);
         break;
         case WS_EVT_DATA:
-        AwsFrameInfo *info;
-        info = (AwsFrameInfo*)arg;
-        if (info->final && info->index == 0 && info->len == len && info->opcode == WS_TEXT) 
-        {
-            std::string myData = "";
-            myData.assign((char *)data, len);
-            std::istringstream ss(myData);
-            std::string key, value;
-            std::getline(ss, key, ',');
-            std::getline(ss, value, ',');
-            Serial.printf("Key [%s] Value[%s]\n", key.c_str(), value.c_str()); 
-            int valueInt = atoi(value.c_str());     
-            if (key == "MoveCar")
-            {
-            moveCar(valueInt);        
+            AwsFrameInfo *info;
+            info = (AwsFrameInfo*)arg;
+            if (info->final && info->index == 0 && info->len == len && info->opcode == WS_TEXT) {
+                std::string myData = "";
+                myData.assign((char *)data, len);
+                std::istringstream ss(myData);
+                std::string key, value;
+                std::getline(ss, key, ',');
+                std::getline(ss, value, ',');
+                Serial.printf("Key [%s] Value[%s]\n", key.c_str(), value.c_str()); 
+                int valueInt = atoi(value.c_str());     
+                if (key == "MoveCar") {
+                    moveCar(valueInt);        
+                }
+                else if (key == "AUX") {
+                    auxControl(valueInt);
+                }
+                else if (key == "Bucket") {
+                    bucketTilt(valueInt);        
+                }  
+                else if (key =="Switch") {
+                    if(!(horizontalScreen)) {
+                        horizontalScreen = true;   
+                    }
+                    else {
+                        horizontalScreen = false;
+                    }
+                }
             }
-            else if (key == "AUX")
-            {
-            auxControl(valueInt);
-            }
-            else if (key == "Bucket")
-            {
-            bucketTilt(valueInt);        
-            }  
-            else if (key =="Switch")
-            {
-            if(!(horizontalScreen))
-            {
-                horizontalScreen = true;   
-            }
-            else{
-                horizontalScreen = false;
-            }
-            }
-        }
-        break;
+            break;
+
         case WS_EVT_PONG:
         case WS_EVT_ERROR:
-        break;
+            break;
+
         default:
-        break;  
+            break;  
     }
 }
 
@@ -279,7 +264,7 @@ void setup(void)  {
     Serial.begin(115200);
 
     // Initialize SPIFFS
-    if(!SPIFFS.begin(true)){
+    if(!SPIFFS.begin(true)) {
         Serial.println("An Error has occurred while mounting SPIFFS");
         return;
     }
