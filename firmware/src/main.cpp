@@ -27,165 +27,69 @@
 #include <sstream>
 
 // #include "pins.h"
+#include "motor_defs.h"
+#include <DRV8833.h>
 
 const char* ssid = "ProfBoots MiniSkidi";
-
-struct MOTOR_PINS
-{
-  int pinIN1;
-  int pinIN2;    
-};
-
-std::vector<MOTOR_PINS> motorPins = 
-{
-  {RIGHT_MOTOR_IN1, RIGHT_MOTOR_IN2},  //RIGHT_MOTOR Pins (IN1, IN2)
-  {LEFT_MOTOR_IN1, LEFT_MOTOR_IN2},  //LEFT_MOTOR  Pins
-  {ARM_MOTOR_IN1, ARM_MOTOR_IN2}, //ARM_MOTOR pins 
-};
 
 Servo bucketServo;
 Servo auxServo;
 
-#define UP 1
-#define DOWN 2
-#define LEFT 3
-#define RIGHT 4
-#define ARMUP 5
-#define ARMDOWN 6
-#define STOP 0
-
-#define RIGHT_MOTOR 1
-#define LEFT_MOTOR 0
-#define ARM_MOTOR 2
-
-#define FORWARD 1
-#define BACKWARD -1
-
-bool horizontalScreen;//When screen orientation is locked vertically this rotates the D-Pad controls so that forward would now be left.
-bool removeArmMomentum = false;
-
 AsyncWebServer server(80);
 AsyncWebSocket wsCarInput("/CarInput");
 
-void rotateMotor(int motorNumber, int motorDirection) {
-    if (motorDirection == FORWARD) {
-        digitalWrite(motorPins[motorNumber].pinIN1, HIGH);
-        digitalWrite(motorPins[motorNumber].pinIN2, LOW);    
-    }
-    else if (motorDirection == BACKWARD) {
-        digitalWrite(motorPins[motorNumber].pinIN1, LOW);
-        digitalWrite(motorPins[motorNumber].pinIN2, HIGH);     
-    }
-    else {
-        if(removeArmMomentum) {
-            digitalWrite(motorPins[ARM_MOTOR].pinIN1, HIGH);
-            digitalWrite(motorPins[ARM_MOTOR].pinIN2, LOW); 
-            delay(10);
-            digitalWrite(motorPins[motorNumber].pinIN1, LOW);
-            digitalWrite(motorPins[motorNumber].pinIN2, LOW);
-            delay(5);
-            digitalWrite(motorPins[ARM_MOTOR].pinIN1, HIGH);
-            digitalWrite(motorPins[ARM_MOTOR].pinIN2, LOW);
-            delay(10);  
-            removeArmMomentum = false;
-        }
-        digitalWrite(motorPins[motorNumber].pinIN1, LOW);
-        digitalWrite(motorPins[motorNumber].pinIN2, LOW);       
-    }
+void stop() {
+    rightMotor.stop();
+    leftMotor.stop();
+    armMotor.stop();
 }
 
-void moveCar(int inputValue) {
-    Serial.printf("Got value as %d\n", inputValue); 
-    if(!(horizontalScreen)) { 
-        switch(inputValue) {
-            case UP:
-                rotateMotor(RIGHT_MOTOR, FORWARD);
-                rotateMotor(LEFT_MOTOR, FORWARD);                  
-                break;
-        
-            case DOWN:
-                rotateMotor(RIGHT_MOTOR, BACKWARD);
-                rotateMotor(LEFT_MOTOR, BACKWARD);  
-                break;
-        
-            case LEFT:
-                rotateMotor(RIGHT_MOTOR, BACKWARD);
-                rotateMotor(LEFT_MOTOR, FORWARD);  
-                break;
-        
-            case RIGHT:
-                rotateMotor(RIGHT_MOTOR, FORWARD);
-                rotateMotor(LEFT_MOTOR, BACKWARD); 
-                break;
-        
-            case STOP:
-                rotateMotor(ARM_MOTOR, STOP); 
-                rotateMotor(RIGHT_MOTOR, STOP);
-                rotateMotor(LEFT_MOTOR, STOP);    
-                break;
+void move(int input) {
+    Serial.printf("Got: %d\n\r", input);
 
-            case ARMUP:
-                rotateMotor(ARM_MOTOR, FORWARD);
-                break;
-            
-            case ARMDOWN:
-                rotateMotor(ARM_MOTOR, BACKWARD);
-                removeArmMomentum = true;
-                break; 
-            
-            default:
-                rotateMotor(ARM_MOTOR, STOP);    
-                rotateMotor(RIGHT_MOTOR, STOP);
-                rotateMotor(LEFT_MOTOR, STOP); 
-                break;
-        }
-    }
-    else {
-        switch(inputValue){
-            case UP:
-                rotateMotor(RIGHT_MOTOR, BACKWARD);
-                rotateMotor(LEFT_MOTOR, FORWARD);                  
-                break;
-        
-            case DOWN:
-                rotateMotor(RIGHT_MOTOR, FORWARD);
-                rotateMotor(LEFT_MOTOR, BACKWARD);  
-                break;
-        
-            case LEFT:
-                rotateMotor(RIGHT_MOTOR, BACKWARD);
-                rotateMotor(LEFT_MOTOR, BACKWARD);  
-                break;
-        
-            case RIGHT:
-                rotateMotor(RIGHT_MOTOR, FORWARD);
-                rotateMotor(LEFT_MOTOR, FORWARD); 
-                break;
-        
-            case STOP:
-                rotateMotor(ARM_MOTOR, STOP); 
-                rotateMotor(RIGHT_MOTOR, STOP);
-                rotateMotor(LEFT_MOTOR, STOP);    
-                break;
+    switch(input) {
+        case UP:
+            Serial.println("Going forward");
+            rightMotor.forward();
+            leftMotor.forward();
+            break;
+    
+        case DOWN:
+            rightMotor.backward();
+            leftMotor.backward();
+            break;
+    
+        case LEFT:
+            rightMotor.forward();
+            leftMotor.backward();
+            break;
+    
+        case RIGHT:
+            rightMotor.backward();
+            leftMotor.forward();
+            break;
+    
+        case STOP:
+            rightMotor.stop();
+            leftMotor.stop();
+            armMotor.stop();
+            break;
 
-            case ARMUP:
-                rotateMotor(ARM_MOTOR, FORWARD); 
-                break;
-            
-            case ARMDOWN:
-                rotateMotor(ARM_MOTOR, BACKWARD);
-                removeArmMomentum = true;
-                break; 
-            
-            default:
-                rotateMotor(ARM_MOTOR, STOP);    
-                rotateMotor(RIGHT_MOTOR, STOP);
-                rotateMotor(LEFT_MOTOR, STOP); 
-                break;
-        }
+        case ARMUP:
+            armMotor.forward();
+            break;
+        
+        case ARMDOWN:
+            armMotor.backward();
+            break; 
+        
+        default:
+            rightMotor.stop();
+            leftMotor.stop();
+            armMotor.stop();
+            break;
     }
 }
-
 
 void bucketTilt(int bucketServoValue) {
     bucketServo.write(bucketServoValue); 
@@ -216,7 +120,7 @@ void onCarInputWebSocketEvent(AsyncWebSocket *server,
         break;
         case WS_EVT_DISCONNECT:
         Serial.printf("WebSocket client #%u disconnected\n", client->id());
-        moveCar(STOP);
+        move(STOP);
         break;
         case WS_EVT_DATA:
             AwsFrameInfo *info;
@@ -231,7 +135,7 @@ void onCarInputWebSocketEvent(AsyncWebSocket *server,
                 Serial.printf("Key [%s] Value[%s]\n", key.c_str(), value.c_str()); 
                 int valueInt = atoi(value.c_str());     
                 if (key == "MoveCar") {
-                    moveCar(valueInt);        
+                    move(valueInt);        
                 }
                 else if (key == "AUX") {
                     auxControl(valueInt);
@@ -239,14 +143,14 @@ void onCarInputWebSocketEvent(AsyncWebSocket *server,
                 else if (key == "Bucket") {
                     bucketTilt(valueInt);        
                 }  
-                else if (key =="Switch") {
-                    if(!(horizontalScreen)) {
-                        horizontalScreen = true;   
-                    }
-                    else {
-                        horizontalScreen = false;
-                    }
-                }
+                // else if (key =="Switch") {
+                //     if(!(horizontalScreen)) {
+                //         horizontalScreen = true;   
+                //     }
+                //     else {
+                //         horizontalScreen = false;
+                //     }
+                // }
             }
             break;
 
@@ -263,6 +167,10 @@ void onCarInputWebSocketEvent(AsyncWebSocket *server,
 void setup(void)  {
     Serial.begin(115200);
 
+    Serial.printf("RIGHT_MOTOR_REVERSE_PINS: %u\r\n", RIGHT_MOTOR_REVERSE_PINS);
+    Serial.printf("LEFT_MOTOR_REVERSE_PINS: %u\r\n", LEFT_MOTOR_REVERSE_PINS);
+    Serial.printf("ARM_MOTOR_REVERSE_PINS: %u\r\n", ARM_MOTOR_REVERSE_PINS);
+
     // Initialize SPIFFS
     if(!SPIFFS.begin(true)) {
         Serial.println("An Error has occurred while mounting SPIFFS");
@@ -270,7 +178,7 @@ void setup(void)  {
     }
 
     // Initialize motors and servos
-    moveCar(STOP);
+    move(STOP);
     bucketServo.attach(BUCKET_SERVO_PIN);
     auxServo.attach(AUX1_SERVO_PIN);
     auxControl(150);
