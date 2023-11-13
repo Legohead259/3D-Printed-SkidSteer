@@ -29,14 +29,81 @@
 // #include "pins.h"
 #include "motor_defs.h"
 #include <DRV8833.h>
-
-const char* ssid = "ProfBoots MiniSkidi";
+#include <ArduinoJson.h>
 
 Servo bucketServo;
 Servo auxServo;
 
 AsyncWebServer server(80);
 AsyncWebSocket wsCarInput("/CarInput");
+
+struct Config {
+    String ssid;
+    String deviceName;
+    bool reverseLeft;
+    bool reverseRight;
+    bool reverseArm;
+};
+
+Config config;
+
+void loadConfig() {
+    File configFile = SPIFFS.open("/config.json", "r");
+    if (configFile) {
+        size_t size = configFile.size();
+        std::unique_ptr<char[]> buf(new char[size]);
+        configFile.readBytes(buf.get(), size);
+        configFile.close();
+
+        DynamicJsonDocument doc(1024);
+        DeserializationError error = deserializeJson(doc, buf.get());
+
+        if (!error) {
+            config.ssid = doc["ssid"].as<String>();
+            config.deviceName = doc["deviceName"].as<String>();
+            config.reverseLeft = doc["reverseLeft"].as<bool>();
+            config.reverseRight = doc["reverseRight"].as<bool>();
+            config.reverseArm = doc["reverseArm"].as<bool>();
+        }
+    }
+}
+
+void saveConfig() {
+    DynamicJsonDocument doc(1024);
+    doc["ssid"] = config.ssid;
+    doc["deviceName"] = config.deviceName;
+    doc["reverseLeft"] = config.reverseLeft;
+    doc["reverseRight"] = config.reverseRight;
+    doc["reverseArm"] = config.reverseArm;
+
+    File configFile = SPIFFS.open("/config.json", "w");
+    if (configFile) {
+        serializeJson(doc, configFile);
+        configFile.close();
+    }
+}
+
+void handleConfig(AsyncWebServerRequest *request) {
+    request->send(SPIFFS, "/config.html", String(), false);
+} 
+
+void handleSaveConfig(AsyncWebServerRequest *request) {
+    String ssid = request->arg("ssid");
+    String deviceName = request->arg("deviceName");
+    bool reverseLeft = request->hasArg("reverseLeft");
+    bool reverseRight = request->hasArg("reverseRight");
+    bool reverseArm = request->hasArg("reverseArm");
+
+    config.ssid = ssid;
+    config.deviceName = deviceName;
+    config.reverseLeft = reverseLeft;
+    config.reverseRight = reverseRight;
+    config.reverseArm = reverseArm;
+
+    saveConfig();
+
+    request->redirect("/");
+}
 
 void stop() {
     rightMotor.stop();
@@ -167,30 +234,39 @@ void onCarInputWebSocketEvent(AsyncWebSocket *server,
 void setup(void)  {
     Serial.begin(115200);
 
-    Serial.printf("RIGHT_MOTOR_REVERSE_PINS: %u\r\n", RIGHT_MOTOR_REVERSE_PINS);
-    Serial.printf("LEFT_MOTOR_REVERSE_PINS: %u\r\n", LEFT_MOTOR_REVERSE_PINS);
-    Serial.printf("ARM_MOTOR_REVERSE_PINS: %u\r\n", ARM_MOTOR_REVERSE_PINS);
-
     // Initialize SPIFFS
     if(!SPIFFS.begin(true)) {
         Serial.println("An Error has occurred while mounting SPIFFS");
         return;
     }
 
+    loadConfig();
+    Serial.printf("SSID: %s\r\n", config.ssid);
+    Serial.printf("Device Name: %s\r\n", config.deviceName);
+    Serial.printf("Reverse Left: %s\r\n", config.reverseLeft ? "true" : "false");
+    Serial.printf("Reverse Right: %s\r\n", config.reverseRight ? "true" : "false");
+    Serial.printf("Reverse Arm: %s\r\n", config.reverseArm ? "true" : "false");
+
     // Initialize motors and servos
+    if (config.reverseRight) { rightMotor.reversePins(); }
+    if (config.reverseLeft) { leftMotor.reversePins(); }
+    if (config.reverseArm) { armMotor.reversePins(); }
+
     move(STOP);
     bucketServo.attach(BUCKET_SERVO_PIN);
     auxServo.attach(AUX1_SERVO_PIN);
     auxControl(150);
     bucketTilt(140);
 
-    WiFi.softAP(ssid );
+    WiFi.softAP(config.ssid.c_str());
     IPAddress IP = WiFi.softAPIP();
     Serial.print("AP IP address: ");
     Serial.println(IP);
 
     server.on("/", HTTP_GET, handleRoot);
     server.onNotFound(handleNotFound);
+    server.on("/config", handleConfig);
+    server.on("/saveConfig", HTTP_POST, handleSaveConfig);
         
     wsCarInput.onEvent(onCarInputWebSocketEvent);
     server.addHandler(&wsCarInput);
